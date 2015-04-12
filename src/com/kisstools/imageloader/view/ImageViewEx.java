@@ -1,6 +1,5 @@
 package com.kisstools.imageloader.view;
 
-import me.dawson.kisstools.utils.LogUtil;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
@@ -9,6 +8,7 @@ import android.view.View;
 import android.widget.ImageView;
 
 import com.kisstools.imageloader.ImageLoader;
+import com.kisstools.utils.LogUtil;
 
 public class ImageViewEx extends ImageView {
 	public static final String TAG = "AsyncImageView";
@@ -63,7 +63,7 @@ public class ImageViewEx extends ImageView {
 		super.onStartTemporaryDetach();
 		LogUtil.d(TAG, "onStartTemporaryDetach");
 		if (!imageLoaded) {
-			ImageLoader.getInstance().cancelLoad(imageId);
+			ImageLoader.getInstance().cancel(imageId);
 		}
 	}
 
@@ -83,7 +83,7 @@ public class ImageViewEx extends ImageView {
 		} else {
 			// decrease image
 			if (!imageLoaded) {
-				ImageLoader.getInstance().cancelLoad(imageId);
+				ImageLoader.getInstance().cancel(imageId);
 			}
 		}
 	}
@@ -103,7 +103,7 @@ public class ImageViewEx extends ImageView {
 		super.onDetachedFromWindow();
 		LogUtil.d(TAG, "onDetachedFromWindow " + imageId);
 		if (!imageLoaded) {
-			ImageLoader.getInstance().cancelLoad(imageId);
+			ImageLoader.getInstance().cancel(imageId);
 		}
 	}
 

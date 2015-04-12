@@ -3,17 +3,18 @@ package com.kisstools.imageloader.cache;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import me.dawson.kisstools.utils.BitmapUtil;
-import me.dawson.kisstools.utils.StringUtil;
-import me.dawson.kisstools.utils.SystemUtil;
 import android.graphics.Bitmap;
 
-public class LruMemoryCache extends BaseCache<Bitmap> {
+import com.kisstools.utils.BitmapUtil;
+import com.kisstools.utils.StringUtil;
+import com.kisstools.utils.SystemUtil;
+
+public class MemImageCache extends BaseCache<Bitmap> {
 	public static final String TAG = "LruImageCache";
 	private LinkedHashMap<String, Bitmap> cacheMap;
 	private long totalSize;
 
-	public LruMemoryCache() {
+	public MemImageCache() {
 		maxSize = SystemUtil.getMaxMemory() / 4;
 		cacheMap = new LinkedHashMap<String, Bitmap>(0, 0.75f, true);
 		totalSize = 0;
@@ -34,7 +35,7 @@ public class LruMemoryCache extends BaseCache<Bitmap> {
 		}
 
 		// trim total size to max limit
-		trimToSize(maxSize);
+		trim(maxSize);
 	}
 
 	@Override
@@ -87,10 +88,10 @@ public class LruMemoryCache extends BaseCache<Bitmap> {
 
 	@Override
 	public void clear() {
-		trimToSize(0);
+		trim(0);
 	}
 
-	protected void trimToSize(long maxSize) {
+	protected void trim(long maxSize) {
 		while (true) {
 			synchronized (this) {
 				if (totalSize <= maxSize || cacheMap.isEmpty()) {

@@ -4,29 +4,26 @@ import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 
-import me.dawson.kisstools.utils.LogUtil;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-public class ImageViewRef {
-	protected Reference<ImageViewEx> imageViewRef;
-	private String identity;
+import com.kisstools.utils.LogUtil;
 
-	public ImageViewRef(ImageViewEx iv) {
-		this(iv, null);
+public class ViewPack {
+	protected Reference<ImageView> viewPack;
+
+	public ViewPack(ImageView iv) {
+		viewPack = new WeakReference<ImageView>(iv);
 	}
 
-	public ImageViewRef(ImageViewEx iv, String id) {
-		imageViewRef = new WeakReference<ImageViewEx>(iv);
-		identity = id;
-	}
-
-	public String getIdentity() {
-		return identity;
+	public int getId() {
+		View view = viewPack.get();
+		return view == null ? super.hashCode() : view.hashCode();
 	}
 
 	public int getWidth() {
-		ImageView imageView = imageViewRef.get();
+		ImageView imageView = viewPack.get();
 		if (imageView != null) {
 			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
 			int width = 0;
@@ -46,7 +43,7 @@ public class ImageViewRef {
 	}
 
 	public int getHeight() {
-		ImageView imageView = imageViewRef.get();
+		ImageView imageView = viewPack.get();
 		if (imageView != null) {
 			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
 			int height = 0;
@@ -65,12 +62,12 @@ public class ImageViewRef {
 		return 0;
 	}
 
-	public ImageViewEx getWrappedView() {
-		return imageViewRef.get();
+	public ImageView getPackView() {
+		return viewPack.get();
 	}
 
 	public boolean isCollected() {
-		return imageViewRef.get() == null;
+		return viewPack.get() == null;
 	}
 
 	private static int getFieldValue(Object object, String fieldName) {

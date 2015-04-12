@@ -4,12 +4,12 @@ public abstract class BaseCache<T> implements Cache<T> {
 
 	protected long maxSize;
 
-	protected abstract void trimToSize(long maxSize);
+	protected abstract void trim(long maxSize);
 
 	@Override
 	public void setMaxSize(long maxSize) {
 		this.maxSize = maxSize;
-		trimToSize(maxSize);
+		trim(maxSize);
 	}
 
 	@Override
@@ -18,6 +18,6 @@ public abstract class BaseCache<T> implements Cache<T> {
 	}
 
 	public void clear() {
-		trimToSize(0);
+		trim(0);
 	}
 }

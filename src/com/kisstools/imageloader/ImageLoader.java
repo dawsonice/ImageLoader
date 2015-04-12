@@ -1,18 +1,15 @@
 package com.kisstools.imageloader;
 
-import java.io.File;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import me.dawson.kisstools.utils.BitmapUtil;
-import me.dawson.kisstools.utils.ImageSize;
-import me.dawson.kisstools.utils.LogUtil;
-import me.dawson.kisstools.utils.StringUtil;
 import android.graphics.Bitmap;
+import android.widget.ImageView;
 
-import com.kisstools.imageloader.cache.Cache;
-import com.kisstools.imageloader.cache.LruDiskCache;
-import com.kisstools.imageloader.cache.LruMemoryCache;
-import com.kisstools.imageloader.view.ImageViewRef;
+import com.kisstools.imageloader.view.ViewPack;
+import com.kisstools.utils.LogUtil;
+import com.kisstools.utils.StringUtil;
 
 public class ImageLoader {
 	public static final String TAG = "ImageLoader";
@@ -22,25 +19,33 @@ public class ImageLoader {
 	public static ImageLoader getInstance() {
 		synchronized (ImageLoader.class) {
 			if (instance == null) {
-				if (instance == null) {
-					instance = new ImageLoader();
-				}
+				instance = new ImageLoader();
 			}
 		}
 		return instance;
 	}
 
-	private Cache<Bitmap> memoryCache;
-	private Cache<File> diskCache;
-	private HashMap<String, ImageViewRef> loadTasks;
+	private LoaderProperty property;
+	private Map<Integer, ViewPack> loaderTasks;
+	private LoaderProperty loaderProperty;
+
+	private final AtomicBoolean paused = new AtomicBoolean(false);
+	private final Object pauseLock = new Object();
 
 	protected ImageLoader() {
+		if (loaderProperty == null) {
+			loaderProperty = new LoaderProperty();
+		}
+		property = loaderProperty.build();
+		loaderTasks = new HashMap<Integer, ViewPack>();
 	}
 
-	public void init() {
-		memoryCache = new LruMemoryCache();
-		diskCache = new LruDiskCache();
-		loadTasks = new HashMap<String, ImageViewRef>();
+	public void resume() {
+
+	}
+
+	public void pause() {
+
 	}
 
 	public void destroy() {
@@ -50,64 +55,56 @@ public class ImageLoader {
 		if (StringUtil.isEmpty(filePath)) {
 			return false;
 		}
-
-		if (memoryCache.contains(filePath)) {
+		String key = loaderProperty.namer.create(filePath);
+		if (loaderProperty.memCache.contains(key)) {
 			return true;
 		}
 
-		if (diskCache.contains(filePath)) {
+		if (loaderProperty.diskCache.contains(key)) {
 			return true;
 		}
 
 		return false;
 	}
 
-	public Bitmap getImage(String filePath) {
-		return getImage(filePath, null);
+	public void load(String path) {
+		load(null, path);
 	}
 
-	public Bitmap getImage(String filePath, ImageSize size) {
-		if (StringUtil.isEmpty(filePath)) {
-			return null;
-		}
-
-		if (!hasImage(filePath)) {
-			LogUtil.w(TAG, "image not cached!");
-			return null;
-		}
-
-		String cachePath = getCachePath(filePath);
-		return BitmapUtil.getImage(cachePath, size);
-	}
-
-	public void loadImage(String filePath) {
-		if (StringUtil.isEmpty(filePath)) {
-			LogUtil.w(TAG, "invalid filePath");
+	public void load(ImageView imageView, String path) {
+		if (StringUtil.isEmpty(path)) {
 			return;
 		}
 
-		if (hasImage(filePath)) {
-			LogUtil.d(TAG, "image already cached");
-			return;
-		}
-	}
-
-	public void cancelLoad(String filePath) {
-		if (StringUtil.isEmpty(filePath)) {
-			LogUtil.w(TAG, "invalid filePath");
+		String key = loaderProperty.namer.create(path);
+		Bitmap cached = loaderProperty.memCache.get(key);
+		if (cached != null) {
+			LogUtil.d(TAG, "load image from memory");
+			imageView.setImageBitmap(cached);
 			return;
 		}
 
-		loadTasks.remove(filePath);
+		ViewPack vp = new ViewPack(imageView);
+
+		LoaderTask task = new LoaderTask();
+		task.key = key;
+		task.path = path;
+		task.view = vp;
+		task.loaderProperty = loaderProperty;
+		loaderProperty.executor.execute(task);
 	}
 
-	private String getCachePath(String filePath) {
-		String localPath = null;
-		if (diskCache instanceof LruDiskCache) {
-			String cacheFolder = ((LruDiskCache) diskCache).getCacheFolder();
-			localPath = cacheFolder + "/" + filePath;
+	public boolean cancel(ImageView imageView) {
+		return false;
+	}
+
+	public boolean cancel(String path) {
+		if (StringUtil.isEmpty(path)) {
+			LogUtil.w(TAG, "invalid path");
+			return false;
 		}
-		return localPath;
+
+		return loaderTasks.remove(path) != null;
 	}
 
 }
