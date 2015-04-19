@@ -4,16 +4,16 @@ import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import android.graphics.Bitmap;
+import android.text.TextUtils;
 
-import com.kisstools.utils.BitmapUtil;
 import com.kisstools.utils.FileUtil;
 import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.MediaUtil;
 import com.kisstools.utils.StringUtil;
 
-public class DiskImageCache extends BaseCache<Bitmap> {
-	public static final String TAG = "LruDiskCache";
+public class DiskImageCache extends BaseCache<String> {
+
+	public static final String TAG = "DiskImageCache";
 
 	private static final long DEFAULT_MAX = 536870912; // 512MB
 
@@ -55,28 +55,31 @@ public class DiskImageCache extends BaseCache<Bitmap> {
 	}
 
 	@Override
-	public Bitmap get(String key) {
+	public String get(String key) {
 		if (StringUtil.isEmpty(key)) {
 			return null;
 		}
 
-		Bitmap bitmap = null;
 		String absPath = cacheDir + "/" + key;
-		if (!FileUtil.exists(absPath)) {
-			return bitmap;
+		if (FileUtil.exists(absPath)) {
+			Long currentTime = System.currentTimeMillis();
+			File file = new File(absPath);
+			file.setLastModified(currentTime);
+			cacheMap.put(key, currentTime);
+			return absPath;
+		} else {
+			return null;
 		}
-		bitmap = BitmapUtil.getImage(absPath);
-		Long currentTime = System.currentTimeMillis();
-		File file = new File(absPath);
-		file.setLastModified(currentTime);
-		cacheMap.put(key, currentTime);
-		return bitmap;
 	}
 
 	@Override
-	public void set(String key, Bitmap bitmap) {
+	public void set(String key, String imagePath) {
 		String absPath = cacheDir + "/" + key;
-		if (StringUtil.isEmpty(key)) {
+		if (StringUtil.isEmpty(key) || TextUtils.isEmpty(imagePath)) {
+			return;
+		}
+
+		if (imagePath.equals(absPath)) {
 			return;
 		}
 
@@ -85,7 +88,7 @@ public class DiskImageCache extends BaseCache<Bitmap> {
 			FileUtil.delete(absPath);
 		}
 
-		BitmapUtil.saveImage(bitmap, absPath);
+		FileUtil.move(imagePath, absPath);
 		File file = new File(absPath);
 		totalSize += file.length();
 		Long currentTime = System.currentTimeMillis();
@@ -101,11 +104,11 @@ public class DiskImageCache extends BaseCache<Bitmap> {
 	}
 
 	@Override
-	public Bitmap remove(String key) {
+	public String remove(String key) {
 		if (StringUtil.isEmpty(key)) {
 			return null;
 		}
-		String absPath = cacheDir + key;
+		String absPath = cacheDir + "/" + key;
 		if (!FileUtil.exists(absPath)) {
 			return null;
 		}
@@ -155,6 +158,7 @@ public class DiskImageCache extends BaseCache<Bitmap> {
 						.next();
 				String key = entry.getKey();
 				String absPath = cacheDir + key;
+				LogUtil.d(TAG, "trim key " + key);
 				totalSize -= FileUtil.size(absPath);
 				cacheMap.remove(key);
 				FileUtil.delete(absPath);

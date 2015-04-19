@@ -21,7 +21,7 @@ public class LoaderProperty {
 
 	public Cache<Bitmap> memCache;
 
-	public Cache<Bitmap> diskCache;
+	public Cache<String> diskCache;
 
 	public Executor executor;
 

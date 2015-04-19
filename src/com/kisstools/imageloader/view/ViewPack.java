@@ -11,19 +11,38 @@ import android.widget.ImageView;
 import com.kisstools.utils.LogUtil;
 
 public class ViewPack {
-	protected Reference<ImageView> viewPack;
 
-	public ViewPack(ImageView iv) {
-		viewPack = new WeakReference<ImageView>(iv);
+	protected Reference<ImageView> viewRef;
+	protected String path;
+
+	public ViewPack(ImageView iv, String path) {
+		viewRef = new WeakReference<ImageView>(iv);
+		this.path = path;
 	}
 
 	public int getId() {
-		View view = viewPack.get();
+		View view = viewRef.get();
 		return view == null ? super.hashCode() : view.hashCode();
 	}
 
+	public ImageView getImageView() {
+		return viewRef.get();
+	}
+
+	public String getPath() {
+		return this.path;
+	}
+
+	public synchronized void collect() {
+		viewRef.clear();
+	}
+
+	public synchronized boolean isCollected() {
+		return viewRef.get() == null;
+	}
+
 	public int getWidth() {
-		ImageView imageView = viewPack.get();
+		ImageView imageView = viewRef.get();
 		if (imageView != null) {
 			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
 			int width = 0;
@@ -43,7 +62,7 @@ public class ViewPack {
 	}
 
 	public int getHeight() {
-		ImageView imageView = viewPack.get();
+		ImageView imageView = viewRef.get();
 		if (imageView != null) {
 			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
 			int height = 0;
@@ -60,14 +79,6 @@ public class ViewPack {
 			return height;
 		}
 		return 0;
-	}
-
-	public ImageView getPackView() {
-		return viewPack.get();
-	}
-
-	public boolean isCollected() {
-		return viewPack.get() == null;
 	}
 
 	private static int getFieldValue(Object object, String fieldName) {

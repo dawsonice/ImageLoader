@@ -6,11 +6,14 @@ import java.util.Map;
 import android.graphics.Bitmap;
 
 import com.kisstools.utils.BitmapUtil;
+import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.StringUtil;
 import com.kisstools.utils.SystemUtil;
 
 public class MemImageCache extends BaseCache<Bitmap> {
-	public static final String TAG = "LruImageCache";
+
+	public static final String TAG = "MemImageCache";
+
 	private LinkedHashMap<String, Bitmap> cacheMap;
 	private long totalSize;
 
@@ -102,6 +105,7 @@ public class MemImageCache extends BaseCache<Bitmap> {
 						.iterator().next();
 				String key = toEvict.getKey();
 				Bitmap bitmap = toEvict.getValue();
+				LogUtil.d(TAG, "trim key " + key);
 				cacheMap.remove(key);
 				totalSize -= BitmapUtil.getImageBytes(bitmap);
 			}
