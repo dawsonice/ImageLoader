@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
 
 import android.widget.ImageView;
@@ -28,48 +28,67 @@ public class ImageLoader {
 		return instance;
 	}
 
-	private LoaderProperty property;
+	private LoaderRuntime runtime;
 	// path as the string, view as the pack
 	private Map<Integer, ViewPack> loadingView;
 	private Map<String, ReentrantLock> pathLocks;
 
-	private LoaderProperty loaderProperty;
-
-	private final AtomicBoolean paused = new AtomicBoolean(false);
-	private final Object pauseLock = new Object();
-
 	protected ImageLoader() {
-		if (loaderProperty == null) {
-			loaderProperty = new LoaderProperty();
+		if (runtime == null) {
+			runtime = new LoaderRuntime();
 		}
 
-		property = loaderProperty.build();
+		runtime = runtime.build();
 		loadingView = Collections
 				.synchronizedMap(new HashMap<Integer, ViewPack>());
 		pathLocks = new WeakHashMap<String, ReentrantLock>();
 	}
 
 	public void resume() {
+		if (!runtime.paused.get()) {
+			LogUtil.w(TAG, "image loader not paused!");
+			return;
+		}
 
+		runtime.paused.set(false);
+		synchronized (runtime.pauseLock) {
+			runtime.pauseLock.notifyAll();
+		}
 	}
 
 	public void pause() {
+		if (runtime.paused.get()) {
+			LogUtil.w(TAG, "image loader already paused!");
+			return;
+		}
+		runtime.paused.set(true);
+	}
 
+	public void stop() {
+		// set all task as collected
+		for (int vid : loadingView.keySet()) {
+			loadingView.get(vid).collect();
+		}
+		loadingView.clear();
+		pathLocks.clear();
+		// shutdown all executors.
+		((ExecutorService) runtime.executor).shutdownNow();
 	}
 
 	public void destroy() {
+
 	}
 
 	public boolean hasImage(String filePath) {
 		if (StringUtil.isEmpty(filePath)) {
 			return false;
 		}
-		String key = loaderProperty.namer.create(filePath);
-		if (loaderProperty.memCache.contains(key)) {
+		String key = runtime.namer.create(filePath);
+		if (runtime.memCache.contains(key)) {
 			return true;
 		}
 
-		if (loaderProperty.diskCache.contains(key)) {
+		if (runtime.diskCache.contains(key)) {
 			return true;
 		}
 
@@ -84,33 +103,34 @@ public class ImageLoader {
 		load(imageView, path, null);
 	}
 
-	public void load(ImageView imageView, String path, LoaderListener listener) {
+	public synchronized void load(ImageView imageView, String path,
+			LoaderListener listener) {
 		if (StringUtil.isEmpty(path)) {
 			return;
 		}
 
 		imageView.setImageBitmap(null);
-		String key = loaderProperty.namer.create(path);
+		String key = runtime.namer.create(path);
 
 		ViewPack vp = new ViewPack(imageView, path);
 
 		if (loadingView.containsKey(vp.getId())) {
-			ViewPack old = loadingView.remove(vp.getId());
-			String oldPath = old.getPath();
+			ViewPack oldPack = loadingView.remove(vp.getId());
+			String oldPath = oldPack.getPath();
 			LogUtil.d(TAG, "collect old view " + oldPath);
-			old.collect();
+			oldPack.collect();
 		}
 
 		loadingView.put(vp.getId(), vp);
 
 		LoaderTask task = new LoaderTask();
-		task.loaderProperty = loaderProperty;
 		ReentrantLock lock = getLock(path);
 		LoadInfo loadInfo = new LoadInfo(path, key, vp, lock);
 		loadInfo.loader = this;
 		task.listener = listener;
+		task.runtime = runtime;
 		task.loadInfo = loadInfo;
-		loaderProperty.executor.execute(task);
+		runtime.executor.execute(task);
 	}
 
 	private ReentrantLock getLock(String path) {
@@ -122,11 +142,10 @@ public class ImageLoader {
 		return lock;
 	}
 
-	public boolean cancel(ImageView imageView) {
+	public synchronized boolean cancel(ImageView imageView) {
 		ViewPack viewPack = new ViewPack(imageView, null);
 		viewPack = loadingView.remove(viewPack.getId());
 		if (viewPack != null) {
-			loadingView.remove(viewPack.getId());
 			String path = viewPack.getPath();
 			LogUtil.d(TAG, "cancel load " + path);
 			viewPack.collect();
@@ -134,7 +153,7 @@ public class ImageLoader {
 		return viewPack != null;
 	}
 
-	public boolean cancel(String path) {
+	public synchronized boolean cancel(String path) {
 		if (StringUtil.isEmpty(path)) {
 			LogUtil.w(TAG, "invalid path");
 			return false;

@@ -5,6 +5,7 @@
 package com.kisstools.imageloader;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.graphics.Bitmap;
 
@@ -15,7 +16,7 @@ import com.kisstools.imageloader.conf.FileNamer;
 import com.kisstools.imageloader.conf.Namer;
 import com.kisstools.thread.KissExecutor;
 
-public class LoaderProperty {
+public class LoaderRuntime {
 
 	public Namer namer;
 
@@ -25,7 +26,15 @@ public class LoaderProperty {
 
 	public Executor executor;
 
-	public LoaderProperty build() {
+	public final AtomicBoolean paused;
+	public final Object pauseLock;
+
+	public LoaderRuntime() {
+		this.paused = new AtomicBoolean(false);
+		this.pauseLock = new Object();
+	}
+
+	public LoaderRuntime build() {
 		int priority = Thread.NORM_PRIORITY;
 		executor = KissExecutor.createExecutor(4, priority);
 		memCache = new MemImageCache();

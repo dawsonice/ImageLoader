@@ -37,48 +37,48 @@ public class ViewPack {
 		viewRef.clear();
 	}
 
-	public synchronized boolean isCollected() {
+	public synchronized boolean collected() {
 		return viewRef.get() == null;
 	}
 
 	public int getWidth() {
 		ImageView imageView = viewRef.get();
-		if (imageView != null) {
-			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
-			int width = 0;
-			if (params != null
-					&& params.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
-				width = imageView.getWidth();
-			}
-			if (width <= 0 && params != null) {
-				width = params.width;
-			}
-			if (width <= 0) {
-				width = getFieldValue(imageView, "mMaxWidth");
-			}
-			return width;
+		if (imageView == null) {
+			return 0;
 		}
-		return 0;
+		final ViewGroup.LayoutParams params = imageView.getLayoutParams();
+		int width = 0;
+		if (params != null
+				&& params.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
+			width = imageView.getWidth();
+		}
+		if (width <= 0 && params != null) {
+			width = params.width;
+		}
+		if (width <= 0) {
+			width = getFieldValue(imageView, "mMaxWidth");
+		}
+		return width;
 	}
 
 	public int getHeight() {
 		ImageView imageView = viewRef.get();
-		if (imageView != null) {
-			final ViewGroup.LayoutParams params = imageView.getLayoutParams();
-			int height = 0;
-			if (params != null
-					&& params.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
-				height = imageView.getHeight();
-			}
-			if (height <= 0 && params != null) {
-				height = params.height;
-			}
-			if (height <= 0) {
-				height = getFieldValue(imageView, "mMaxHeight");
-			}
-			return height;
+		if (imageView == null) {
+			return 0;
 		}
-		return 0;
+		final ViewGroup.LayoutParams params = imageView.getLayoutParams();
+		int height = 0;
+		if (params != null
+				&& params.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+			height = imageView.getHeight();
+		}
+		if (height <= 0 && params != null) {
+			height = params.height;
+		}
+		if (height <= 0) {
+			height = getFieldValue(imageView, "mMaxHeight");
+		}
+		return height;
 	}
 
 	private static int getFieldValue(Object object, String fieldName) {

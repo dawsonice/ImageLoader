@@ -24,10 +24,23 @@ public class LoadInfo {
 
 	public ImageLoader loader;
 
+	private boolean invalid;
+
 	public LoadInfo(String path, String key, ViewPack vp, ReentrantLock lock) {
 		this.path = path;
 		this.key = key;
 		this.view = vp;
 		this.pathLock = lock;
+		this.invalid = false;
+		this.total = 0;
+		this.current = 0;
+	}
+
+	public void invalidate() {
+		this.invalid = true;
+	}
+
+	public boolean invalid() {
+		return (view.collected() || invalid);
 	}
 }

@@ -28,7 +28,7 @@ public class LoaderTask implements Runnable {
 
 	public LoaderListener listener;
 
-	public LoaderProperty loaderProperty;
+	public LoaderRuntime runtime;
 
 	public LoadInfo loadInfo;
 
@@ -38,21 +38,18 @@ public class LoaderTask implements Runnable {
 
 		loadInfo.pathLock.lock();
 		try {
-			if (loadInfo.view.isCollected()) {
+			if (loadInfo.invalid()) {
 				LogUtil.e(TAG, "view already collected");
 				return;
 			}
 
-			loadInfo.total = 0;
-			loadInfo.current = 0;
-
-			if (listener != null) {
+			if (listener != null && !loadInfo.invalid()) {
 				listener.onStart(loadInfo.path);
 			}
 
 			Bitmap bitmap = load();
 
-			if (listener != null) {
+			if (listener != null && !loadInfo.invalid()) {
 				listener.onFinish(loadInfo.path, bitmap);
 			}
 
@@ -70,11 +67,14 @@ public class LoaderTask implements Runnable {
 	}
 
 	private Bitmap load() {
-		Bitmap bitmap = loaderProperty.memCache.get(loadInfo.key);
-		ImageView imageView = loadInfo.view.getImageView();
+		long loadBegin = System.currentTimeMillis();
+		checkPause("start");
+
+		Bitmap bitmap = runtime.memCache.get(loadInfo.key);
 		if (bitmap != null) {
 			LogUtil.d(TAG, "load image from memory");
-			if (imageView != null) {
+			if (!loadInfo.invalid()) {
+				ImageView imageView = loadInfo.view.getImageView();
 				onImage(bitmap, imageView);
 			}
 			return bitmap;
@@ -82,29 +82,29 @@ public class LoaderTask implements Runnable {
 
 		InputStream inputStream = null;
 		// save input content to cache folder if need
-		boolean cacheInput = false;
+		boolean cacheData = false;
 
-		if (loaderProperty.diskCache.contains(loadInfo.key)) {
+		if (runtime.diskCache.contains(loadInfo.key)) {
 			LogUtil.d(TAG, "load image from disk cache");
-			String absPath = loaderProperty.diskCache.get(loadInfo.key);
+			String absPath = runtime.diskCache.get(loadInfo.key);
 			inputStream = FileUtil.getStream(absPath);
 		} else if (loadInfo.path.startsWith("http")
 				|| loadInfo.path.startsWith("https")) {
 			LogUtil.d(TAG, "load image from net");
 			Loader loader = new NetLoader();
 			inputStream = loader.load(loadInfo.path);
-			cacheInput = true;
+			cacheData = true;
 		} else if (loadInfo.path.startsWith("file")
 				|| loadInfo.path.startsWith("/")) {
 			LogUtil.d(TAG, "load image from disk");
 			FileLoader loader = new FileLoader();
 			inputStream = loader.load(loadInfo.path);
-			cacheInput = true;
+			cacheData = true;
 		} else if (loadInfo.path.startsWith("content")) {
 			LogUtil.d(TAG, "load image from content");
 			ContentLoader loader = new ContentLoader();
 			inputStream = loader.load(loadInfo.path);
-			cacheInput = true;
+			cacheData = true;
 		}
 
 		if (inputStream == null) {
@@ -119,17 +119,19 @@ public class LoaderTask implements Runnable {
 
 		}
 
-		if (cacheInput) {
+		if (cacheData) {
 			LogUtil.d(TAG, "save input stream to cache file");
 			String cachePath = MediaUtil.getFileDir("cache") + "/"
 					+ System.currentTimeMillis();
-			if (!write(cachePath, inputStream)) {
+			if (!saveCache(cachePath, inputStream)) {
+				LogUtil.d(TAG, "load invalid on save input stream");
+				FileUtil.delete(cachePath);
 				return bitmap;
 			}
 
 			LogUtil.d(TAG, "set image to disk cache folder");
-			loaderProperty.diskCache.set(loadInfo.key, cachePath);
-			String absPath = loaderProperty.diskCache.get(loadInfo.key);
+			runtime.diskCache.set(loadInfo.key, cachePath);
+			String absPath = runtime.diskCache.get(loadInfo.key);
 			inputStream = FileUtil.getStream(absPath);
 		}
 
@@ -143,46 +145,60 @@ public class LoaderTask implements Runnable {
 		}
 
 		LogUtil.d(TAG, "decode width " + width + " height " + height);
-		long start = System.currentTimeMillis();
+		checkPause("decode");
+		if (loadInfo.invalid()) {
+			LogUtil.d(TAG, "load invalid before decode. " + loadInfo.path);
+			return bitmap;
+		}
+		long decode = System.currentTimeMillis();
 		bitmap = BitmapFactory.decodeStream(inputStream, null, options);
 		CloseUtil.close(inputStream);
-		long delta = System.currentTimeMillis() - start;
-		LogUtil.d(TAG, "decode bitmap delta " + delta);
+		long delta = System.currentTimeMillis() - decode;
+		LogUtil.d(TAG, "decode image delta " + delta);
 
 		if (bitmap == null) {
 			// remove local invalid image cache
-			loaderProperty.diskCache.remove(loadInfo.key);
+			runtime.diskCache.remove(loadInfo.key);
 
 			LogUtil.e(TAG, "failed to decode bitmap");
 			return bitmap;
 		}
 
-		loaderProperty.memCache.set(loadInfo.key, bitmap);
-		imageView = loadInfo.view.getImageView();
-		if (imageView != null) {
+		runtime.memCache.set(loadInfo.key, bitmap);
+		if (!loadInfo.invalid()) {
+			ImageView imageView = loadInfo.view.getImageView();
 			onImage(bitmap, imageView);
 		} else {
 			LogUtil.d(TAG, "view collected on decoded");
 		}
+
+		delta = System.currentTimeMillis() - loadBegin;
+		LogUtil.d(TAG, "load image delta " + delta + " for " + loadInfo.path);
 		return bitmap;
 	}
 
-	private boolean write(String absPath, InputStream ips) {
-		boolean finishReceive = false;
+	private boolean saveCache(String absPath, InputStream ips) {
 		if (!FileUtil.create(absPath, true)) {
-			return finishReceive;
+			return false;
 		}
 
 		FileOutputStream fos = null;
+		boolean interupted = false;
 		try {
 			fos = new FileOutputStream(absPath);
 			byte buffer[] = new byte[10240];
 			boolean hasMore = true;
 			while (hasMore) {
+				checkPause("write");
+
 				int count = ips.read(buffer);
-				hasMore = count > 0 && !loadInfo.view.isCollected();
-				if (!hasMore) {
+				hasMore = count > 0 && !loadInfo.invalid();
+				if (loadInfo.invalid()) {
 					// stop loading content
+					interupted = true;
+				}
+
+				if (!hasMore) {
 					break;
 				}
 
@@ -195,16 +211,21 @@ public class LoaderTask implements Runnable {
 				}
 			}
 			fos.flush();
-			finishReceive = true;
 		} catch (Exception e) {
+			e.printStackTrace();
+			interupted = true;
 		} finally {
 			CloseUtil.close(fos);
 			CloseUtil.close(ips);
 		}
-		return finishReceive;
+		return !interupted;
 	}
 
 	private void onImage(final Bitmap bitmap, final ImageView imageView) {
+		if (bitmap == null || imageView == null) {
+			return;
+		}
+
 		SystemUtil.runOnMain(new Runnable() {
 
 			@Override
@@ -213,5 +234,19 @@ public class LoaderTask implements Runnable {
 			}
 
 		});
+	}
+
+	private void checkPause(String place) {
+		if (!runtime.paused.get()) {
+			return;
+		}
+
+		synchronized (runtime.pauseLock) {
+			try {
+				LogUtil.d(TAG, "paused at place " + place);
+				runtime.pauseLock.wait();
+			} catch (InterruptedException e) {
+			}
+		}
 	}
 }

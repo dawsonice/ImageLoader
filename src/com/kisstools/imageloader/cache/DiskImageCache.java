@@ -100,6 +100,11 @@ public class DiskImageCache extends BaseCache<String> {
 
 	@Override
 	public boolean contains(String key) {
+		String absPath = cacheDir + "/" + key;
+		if (!FileUtil.exists(absPath)) {
+			return false;
+		}
+
 		return cacheMap.containsKey(key);
 	}
 
