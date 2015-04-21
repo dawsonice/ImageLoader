@@ -70,6 +70,8 @@ public class LoaderImpl implements Runnable {
 		long loadBegin = System.currentTimeMillis();
 		checkPause("start");
 
+		LogUtil.d(TAG, "load origin " + loadInfo.origin);
+
 		Bitmap bitmap = config.memCache.get(loadInfo.key);
 		if (bitmap != null) {
 			LogUtil.d(TAG, "load image from memory");
@@ -138,7 +140,7 @@ public class LoaderImpl implements Runnable {
 		Options options = null;
 		int width = loadInfo.view.getWidth();
 		int height = loadInfo.view.getHeight();
-		if (width > 0 && height > 0) {
+		if (width > 0 && height > 0 && !loadInfo.origin) {
 			options = new Options();
 			options.outWidth = width;
 			options.outHeight = height;

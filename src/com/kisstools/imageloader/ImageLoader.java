@@ -7,8 +7,10 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
+
 import android.annotation.SuppressLint;
 import android.widget.ImageView;
+
 import com.kisstools.imageloader.view.ViewPack;
 import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.StringUtil;
@@ -73,8 +75,10 @@ public class ImageLoader {
 		}
 		loadingView.clear();
 		pathLocks.clear();
+
 		// shutdown all executors.
-		((ExecutorService) config.executor).shutdownNow();
+		((ExecutorService) config.remoteExecutor).shutdownNow();
+		((ExecutorService) config.nativeExecutor).shutdownNow();
 	}
 
 	public void destroy() {
@@ -82,15 +86,27 @@ public class ImageLoader {
 	}
 
 	public void load(String path, LoaderListener listener) {
-		load(null, path, listener);
+		load(null, path, listener, false);
+	}
+
+	public void load(String path, LoaderListener listener, boolean origin) {
+		load(null, path, listener, origin);
 	}
 
 	public void load(ImageView imageView, String path) {
-		load(imageView, path, null);
+		load(imageView, path, null, false);
+	}
+
+	public void load(ImageView imageView, String path, boolean origin) {
+		load(imageView, path, null, false);
+	}
+
+	public void load(ImageView imageView, String path, LoaderListener listener) {
+		load(imageView, path, null, false);
 	}
 
 	public synchronized void load(ImageView imageView, String path,
-			LoaderListener listener) {
+			LoaderListener listener, boolean origin) {
 		if (StringUtil.isEmpty(path)) {
 			return;
 		}
@@ -112,15 +128,19 @@ public class ImageLoader {
 		LoaderImpl loader = new LoaderImpl();
 		ReentrantLock lock = getLock(path);
 		LoaderInfo loadInfo = new LoaderInfo(path, key, vp, lock);
+		loadInfo.origin = origin;
 		loadInfo.loader = this;
 		loader.listener = listener;
 		loader.config = config;
 		loader.loadInfo = loadInfo;
 
-		if (config.memCache.contains(key)) {
-			loader.run();
+		boolean disk = config.diskCache.contains(key);
+		boolean mem = config.memCache.contains(key);
+
+		if (mem || disk) {
+			config.nativeExecutor.execute(loader);
 		} else {
-			config.executor.execute(loader);
+			config.remoteExecutor.execute(loader);
 		}
 	}
 

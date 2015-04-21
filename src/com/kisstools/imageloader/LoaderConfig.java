@@ -24,7 +24,9 @@ public class LoaderConfig {
 
 	public Cache<String> diskCache;
 
-	public Executor executor;
+	public Executor remoteExecutor;
+
+	public Executor nativeExecutor;
 
 	public final AtomicBoolean paused;
 	public final Object pauseLock;
@@ -36,7 +38,8 @@ public class LoaderConfig {
 
 	public LoaderConfig build() {
 		int priority = Thread.NORM_PRIORITY;
-		executor = KissExecutor.createExecutor(4, priority);
+		remoteExecutor = KissExecutor.createExecutor(3, priority);
+		nativeExecutor = KissExecutor.createExecutor(2, priority);
 		memCache = new MemImageCache();
 		diskCache = new DiskImageCache();
 		this.namer = new FileNamer();

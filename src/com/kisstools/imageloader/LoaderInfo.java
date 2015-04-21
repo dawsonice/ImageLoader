@@ -26,6 +26,8 @@ public class LoaderInfo {
 
 	public ImageLoader loader;
 
+	public boolean origin;
+
 	private boolean invalid;
 
 	public LoaderInfo(String path, String key, ViewPack vp, ReentrantLock lock) {
