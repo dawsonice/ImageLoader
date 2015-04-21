@@ -22,15 +22,15 @@ import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.MediaUtil;
 import com.kisstools.utils.SystemUtil;
 
-public class LoaderTask implements Runnable {
+public class LoaderImpl implements Runnable {
 
 	public static final String TAG = "LoaderTask";
 
 	public LoaderListener listener;
 
-	public LoaderRuntime runtime;
+	public LoaderConfig config;
 
-	public LoadInfo loadInfo;
+	public LoaderInfo loadInfo;
 
 	@Override
 	public void run() {
@@ -70,7 +70,7 @@ public class LoaderTask implements Runnable {
 		long loadBegin = System.currentTimeMillis();
 		checkPause("start");
 
-		Bitmap bitmap = runtime.memCache.get(loadInfo.key);
+		Bitmap bitmap = config.memCache.get(loadInfo.key);
 		if (bitmap != null) {
 			LogUtil.d(TAG, "load image from memory");
 			if (!loadInfo.invalid()) {
@@ -84,9 +84,9 @@ public class LoaderTask implements Runnable {
 		// save input content to cache folder if need
 		boolean cacheData = false;
 
-		if (runtime.diskCache.contains(loadInfo.key)) {
+		if (config.diskCache.contains(loadInfo.key)) {
 			LogUtil.d(TAG, "load image from disk cache");
-			String absPath = runtime.diskCache.get(loadInfo.key);
+			String absPath = config.diskCache.get(loadInfo.key);
 			inputStream = FileUtil.getStream(absPath);
 		} else if (loadInfo.path.startsWith("http")
 				|| loadInfo.path.startsWith("https")) {
@@ -130,8 +130,8 @@ public class LoaderTask implements Runnable {
 			}
 
 			LogUtil.d(TAG, "set image to disk cache folder");
-			runtime.diskCache.set(loadInfo.key, cachePath);
-			String absPath = runtime.diskCache.get(loadInfo.key);
+			config.diskCache.set(loadInfo.key, cachePath);
+			String absPath = config.diskCache.get(loadInfo.key);
 			inputStream = FileUtil.getStream(absPath);
 		}
 
@@ -158,13 +158,13 @@ public class LoaderTask implements Runnable {
 
 		if (bitmap == null) {
 			// remove local invalid image cache
-			runtime.diskCache.remove(loadInfo.key);
+			config.diskCache.remove(loadInfo.key);
 
 			LogUtil.e(TAG, "failed to decode bitmap");
 			return bitmap;
 		}
 
-		runtime.memCache.set(loadInfo.key, bitmap);
+		config.memCache.set(loadInfo.key, bitmap);
 		if (!loadInfo.invalid()) {
 			ImageView imageView = loadInfo.view.getImageView();
 			onImage(bitmap, imageView);
@@ -237,14 +237,14 @@ public class LoaderTask implements Runnable {
 	}
 
 	private void checkPause(String place) {
-		if (!runtime.paused.get()) {
+		if (!config.paused.get()) {
 			return;
 		}
 
-		synchronized (runtime.pauseLock) {
+		synchronized (config.pauseLock) {
 			try {
 				LogUtil.d(TAG, "paused at place " + place);
-				runtime.pauseLock.wait();
+				config.pauseLock.wait();
 			} catch (InterruptedException e) {
 			}
 		}

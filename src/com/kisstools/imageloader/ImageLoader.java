@@ -7,9 +7,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
-
+import android.annotation.SuppressLint;
 import android.widget.ImageView;
-
 import com.kisstools.imageloader.view.ViewPack;
 import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.StringUtil;
@@ -28,40 +27,43 @@ public class ImageLoader {
 		return instance;
 	}
 
-	private LoaderRuntime runtime;
+	private LoaderConfig config;
+
 	// path as the string, view as the pack
 	private Map<Integer, ViewPack> loadingView;
+
 	private Map<String, ReentrantLock> pathLocks;
 
+	@SuppressLint("UseSparseArrays")
 	protected ImageLoader() {
-		if (runtime == null) {
-			runtime = new LoaderRuntime();
+		if (config == null) {
+			config = new LoaderConfig();
 		}
 
-		runtime = runtime.build();
+		config = config.build();
 		loadingView = Collections
 				.synchronizedMap(new HashMap<Integer, ViewPack>());
 		pathLocks = new WeakHashMap<String, ReentrantLock>();
 	}
 
 	public void resume() {
-		if (!runtime.paused.get()) {
+		if (!config.paused.get()) {
 			LogUtil.w(TAG, "image loader not paused!");
 			return;
 		}
 
-		runtime.paused.set(false);
-		synchronized (runtime.pauseLock) {
-			runtime.pauseLock.notifyAll();
+		config.paused.set(false);
+		synchronized (config.pauseLock) {
+			config.pauseLock.notifyAll();
 		}
 	}
 
 	public void pause() {
-		if (runtime.paused.get()) {
+		if (config.paused.get()) {
 			LogUtil.w(TAG, "image loader already paused!");
 			return;
 		}
-		runtime.paused.set(true);
+		config.paused.set(true);
 	}
 
 	public void stop() {
@@ -72,27 +74,11 @@ public class ImageLoader {
 		loadingView.clear();
 		pathLocks.clear();
 		// shutdown all executors.
-		((ExecutorService) runtime.executor).shutdownNow();
+		((ExecutorService) config.executor).shutdownNow();
 	}
 
 	public void destroy() {
 
-	}
-
-	public boolean hasImage(String filePath) {
-		if (StringUtil.isEmpty(filePath)) {
-			return false;
-		}
-		String key = runtime.namer.create(filePath);
-		if (runtime.memCache.contains(key)) {
-			return true;
-		}
-
-		if (runtime.diskCache.contains(key)) {
-			return true;
-		}
-
-		return false;
 	}
 
 	public void load(String path, LoaderListener listener) {
@@ -110,7 +96,7 @@ public class ImageLoader {
 		}
 
 		imageView.setImageBitmap(null);
-		String key = runtime.namer.create(path);
+		String key = config.namer.create(path);
 
 		ViewPack vp = new ViewPack(imageView, path);
 
@@ -123,14 +109,19 @@ public class ImageLoader {
 
 		loadingView.put(vp.getId(), vp);
 
-		LoaderTask task = new LoaderTask();
+		LoaderImpl loader = new LoaderImpl();
 		ReentrantLock lock = getLock(path);
-		LoadInfo loadInfo = new LoadInfo(path, key, vp, lock);
+		LoaderInfo loadInfo = new LoaderInfo(path, key, vp, lock);
 		loadInfo.loader = this;
-		task.listener = listener;
-		task.runtime = runtime;
-		task.loadInfo = loadInfo;
-		runtime.executor.execute(task);
+		loader.listener = listener;
+		loader.config = config;
+		loader.loadInfo = loadInfo;
+
+		if (config.memCache.contains(key)) {
+			loader.run();
+		} else {
+			config.executor.execute(loader);
+		}
 	}
 
 	private ReentrantLock getLock(String path) {

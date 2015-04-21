@@ -8,7 +8,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.kisstools.imageloader.view.ViewPack;
 
-public class LoadInfo {
+public class LoaderInfo {
+
+	public static final String TAG = "LoaderInfo";
 
 	public final String key;
 
@@ -26,7 +28,7 @@ public class LoadInfo {
 
 	private boolean invalid;
 
-	public LoadInfo(String path, String key, ViewPack vp, ReentrantLock lock) {
+	public LoaderInfo(String path, String key, ViewPack vp, ReentrantLock lock) {
 		this.path = path;
 		this.key = key;
 		this.view = vp;

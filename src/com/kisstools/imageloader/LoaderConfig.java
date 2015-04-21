@@ -16,7 +16,7 @@ import com.kisstools.imageloader.conf.FileNamer;
 import com.kisstools.imageloader.conf.Namer;
 import com.kisstools.thread.KissExecutor;
 
-public class LoaderRuntime {
+public class LoaderConfig {
 
 	public Namer namer;
 
@@ -29,12 +29,12 @@ public class LoaderRuntime {
 	public final AtomicBoolean paused;
 	public final Object pauseLock;
 
-	public LoaderRuntime() {
+	public LoaderConfig() {
 		this.paused = new AtomicBoolean(false);
 		this.pauseLock = new Object();
 	}
 
-	public LoaderRuntime build() {
+	public LoaderConfig build() {
 		int priority = Thread.NORM_PRIORITY;
 		executor = KissExecutor.createExecutor(4, priority);
 		memCache = new MemImageCache();
