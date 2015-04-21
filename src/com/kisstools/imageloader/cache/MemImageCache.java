@@ -10,21 +10,21 @@ import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.StringUtil;
 import com.kisstools.utils.SystemUtil;
 
-public class MemImageCache extends BaseCache<Bitmap> {
+public class MemImageCache extends BaseCache<MemImage> {
 
 	public static final String TAG = "MemImageCache";
 
-	private LinkedHashMap<String, Bitmap> cacheMap;
+	private LinkedHashMap<String, MemImage> cacheMap;
 	private long totalSize;
 
 	public MemImageCache() {
 		maxSize = SystemUtil.getMaxMemory() / 4;
-		cacheMap = new LinkedHashMap<String, Bitmap>(0, 0.75f, true);
+		cacheMap = new LinkedHashMap<String, MemImage>(0, 0.75f, true);
 		totalSize = 0;
 	}
 
 	@Override
-	public void set(String key, Bitmap value) {
+	public void set(String key, MemImage value) {
 		if (StringUtil.isEmpty(key) || value == null) {
 			return;
 		}
@@ -34,7 +34,8 @@ public class MemImageCache extends BaseCache<Bitmap> {
 
 		synchronized (this) {
 			cacheMap.put(key, value);
-			totalSize += BitmapUtil.getImageBytes(value);
+			Bitmap bitmap = value.bitmap;
+			totalSize += BitmapUtil.getImageBytes(bitmap);
 		}
 
 		// trim total size to max limit
@@ -42,7 +43,7 @@ public class MemImageCache extends BaseCache<Bitmap> {
 	}
 
 	@Override
-	public Bitmap get(String key) {
+	public MemImage get(String key) {
 		if (StringUtil.isEmpty(key)) {
 			return null;
 		}
@@ -55,7 +56,7 @@ public class MemImageCache extends BaseCache<Bitmap> {
 	}
 
 	@Override
-	public Bitmap remove(String key) {
+	public MemImage remove(String key) {
 		if (StringUtil.isEmpty(key)) {
 			return null;
 		}
@@ -64,9 +65,10 @@ public class MemImageCache extends BaseCache<Bitmap> {
 			return null;
 		}
 		synchronized (this) {
-			Bitmap bitmap = cacheMap.remove(key);
+			MemImage memImage = cacheMap.remove(key);
+			Bitmap bitmap = memImage.bitmap;
 			totalSize -= BitmapUtil.getImageBytes(bitmap);
-			return bitmap;
+			return memImage;
 		}
 	}
 
@@ -101,10 +103,10 @@ public class MemImageCache extends BaseCache<Bitmap> {
 					break;
 				}
 
-				Map.Entry<String, Bitmap> toEvict = cacheMap.entrySet()
+				Map.Entry<String, MemImage> toEvict = cacheMap.entrySet()
 						.iterator().next();
 				String key = toEvict.getKey();
-				Bitmap bitmap = toEvict.getValue();
+				Bitmap bitmap = toEvict.getValue().bitmap;
 				LogUtil.d(TAG, "trim key " + key);
 				cacheMap.remove(key);
 				totalSize -= BitmapUtil.getImageBytes(bitmap);

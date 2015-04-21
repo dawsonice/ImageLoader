@@ -2,7 +2,7 @@
  * @author dawson dong
  */
 
-package com.kisstools.imageloader;
+package com.kisstools.imageloader.impl;
 
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -12,17 +12,21 @@ import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
 import android.widget.ImageView;
 
-import com.kisstools.imageloader.conf.ContentLoader;
-import com.kisstools.imageloader.conf.FileLoader;
-import com.kisstools.imageloader.conf.Loader;
-import com.kisstools.imageloader.conf.NetLoader;
+import com.kisstools.imageloader.LoaderListener;
+import com.kisstools.imageloader.cache.MemImage;
+import com.kisstools.imageloader.config.LoaderConfig;
+import com.kisstools.imageloader.config.LoaderInfo;
+import com.kisstools.imageloader.loader.ContentLoader;
+import com.kisstools.imageloader.loader.FileLoader;
+import com.kisstools.imageloader.loader.Loader;
+import com.kisstools.imageloader.loader.NetLoader;
 import com.kisstools.utils.CloseUtil;
 import com.kisstools.utils.FileUtil;
 import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.MediaUtil;
 import com.kisstools.utils.SystemUtil;
 
-public class LoaderImpl implements Runnable {
+public class LoadHandler implements Runnable {
 
 	public static final String TAG = "LoaderTask";
 
@@ -54,7 +58,7 @@ public class LoaderImpl implements Runnable {
 			}
 
 		} catch (Throwable t) {
-
+			LogUtil.e(TAG, "loader impl exception.", t);
 		} finally {
 			loadInfo.pathLock.unlock();
 			ImageView imageView = loadInfo.view.getImageView();
@@ -72,14 +76,27 @@ public class LoaderImpl implements Runnable {
 
 		LogUtil.d(TAG, "load origin " + loadInfo.origin);
 
-		Bitmap bitmap = config.memCache.get(loadInfo.key);
-		if (bitmap != null) {
+		int width = loadInfo.view.getWidth();
+		int height = loadInfo.view.getHeight();
+
+		MemImage memImage = config.memCache.get(loadInfo.key);
+		Bitmap bitmap = memImage != null ? memImage.bitmap : null;
+
+		boolean takeMem = bitmap != null
+				&& (memImage.origin || (width <= bitmap.getWidth() && height <= bitmap
+						.getHeight()));
+
+		if (takeMem) {
 			LogUtil.d(TAG, "load image from memory");
 			if (!loadInfo.invalid()) {
 				ImageView imageView = loadInfo.view.getImageView();
 				onImage(bitmap, imageView);
 			}
 			return bitmap;
+		}
+
+		if (bitmap != null) {
+			LogUtil.d(TAG, "ignore memory cache for low resolution");
 		}
 
 		InputStream inputStream = null;
@@ -138,8 +155,6 @@ public class LoaderImpl implements Runnable {
 		}
 
 		Options options = null;
-		int width = loadInfo.view.getWidth();
-		int height = loadInfo.view.getHeight();
 		if (width > 0 && height > 0 && !loadInfo.origin) {
 			options = new Options();
 			options.outWidth = width;
@@ -166,7 +181,11 @@ public class LoaderImpl implements Runnable {
 			return bitmap;
 		}
 
-		config.memCache.set(loadInfo.key, bitmap);
+		memImage = new MemImage();
+		memImage.bitmap = bitmap;
+		memImage.origin = loadInfo.origin
+				|| (width > bitmap.getWidth() && height > bitmap.getHeight());
+		config.memCache.set(loadInfo.key, memImage);
 		if (!loadInfo.invalid()) {
 			ImageView imageView = loadInfo.view.getImageView();
 			onImage(bitmap, imageView);

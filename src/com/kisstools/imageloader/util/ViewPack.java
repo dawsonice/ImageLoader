@@ -1,4 +1,4 @@
-package com.kisstools.imageloader.view;
+package com.kisstools.imageloader.util;
 
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;

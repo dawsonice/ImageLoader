@@ -11,7 +11,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import android.annotation.SuppressLint;
 import android.widget.ImageView;
 
-import com.kisstools.imageloader.view.ViewPack;
+import com.kisstools.imageloader.config.LoaderConfig;
+import com.kisstools.imageloader.config.LoaderInfo;
+import com.kisstools.imageloader.impl.LoadHandler;
+import com.kisstools.imageloader.util.ViewPack;
 import com.kisstools.utils.LogUtil;
 import com.kisstools.utils.StringUtil;
 
@@ -125,7 +128,7 @@ public class ImageLoader {
 
 		loadingView.put(vp.getId(), vp);
 
-		LoaderImpl loader = new LoaderImpl();
+		LoadHandler loader = new LoadHandler();
 		ReentrantLock lock = getLock(path);
 		LoaderInfo loadInfo = new LoaderInfo(path, key, vp, lock);
 		loadInfo.origin = origin;

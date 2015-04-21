@@ -2,7 +2,7 @@
  * @author dawson dong
  */
 
-package com.kisstools.imageloader.conf;
+package com.kisstools.imageloader.loader;
 
 import java.io.InputStream;
 

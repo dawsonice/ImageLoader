@@ -2,11 +2,12 @@
  * @author dawson dong
  */
 
-package com.kisstools.imageloader;
+package com.kisstools.imageloader.config;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.kisstools.imageloader.view.ViewPack;
+import com.kisstools.imageloader.ImageLoader;
+import com.kisstools.imageloader.util.ViewPack;
 
 public class LoaderInfo {
 
@@ -22,7 +23,7 @@ public class LoaderInfo {
 
 	public int current;
 
-	final ReentrantLock pathLock;
+	public final ReentrantLock pathLock;
 
 	public ImageLoader loader;
 

@@ -1,4 +1,4 @@
-package com.kisstools.imageloader.conf;
+package com.kisstools.imageloader.config;
 
 public enum LoadPriority {
 

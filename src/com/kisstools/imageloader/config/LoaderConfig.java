@@ -2,25 +2,24 @@
  * @author dawson dong
  */
 
-package com.kisstools.imageloader;
+package com.kisstools.imageloader.config;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import android.graphics.Bitmap;
-
 import com.kisstools.imageloader.cache.Cache;
 import com.kisstools.imageloader.cache.DiskImageCache;
+import com.kisstools.imageloader.cache.MemImage;
 import com.kisstools.imageloader.cache.MemImageCache;
-import com.kisstools.imageloader.conf.FileNamer;
-import com.kisstools.imageloader.conf.Namer;
+import com.kisstools.imageloader.namer.FileNamer;
+import com.kisstools.imageloader.namer.Namer;
 import com.kisstools.thread.KissExecutor;
 
 public class LoaderConfig {
 
 	public Namer namer;
 
-	public Cache<Bitmap> memCache;
+	public Cache<MemImage> memCache;
 
 	public Cache<String> diskCache;
 
